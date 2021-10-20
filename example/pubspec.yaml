@@ -17,6 +17,8 @@ dependencies:
   photo_view: ^0.13.0
   image:
   ffi: ^1.0.0
+  pdf: ^3.6.0
+  share_plus: ^3.0.4
   opencv:
     path: ../
 

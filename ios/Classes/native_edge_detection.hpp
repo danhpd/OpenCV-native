@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 struct Coordinate
 {
     double x;
@@ -21,6 +23,10 @@ struct ProcessingInput
 
 extern "C"
 struct DetectionResult *detect_edges(char *str);
+
+extern "C"
+struct DetectionResult *detect_edges2(uint8_t *plane0, uint8_t *plane1, uint8_t *plane2,
+                            int bytesPerRow, int bytesPerPixel, int width, int height);
 
 extern "C"
 bool process_image(

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:isolate';
-
+import 'package:camera/camera.dart';
 import 'package:opencv/edge_detection.dart';
 
 class EdgeDetector {
@@ -8,13 +8,55 @@ class EdgeDetector {
   static ReceivePort? receivePort = null;
   static SendPort? sendPort;
 
+  static Future<EdgeDetectionResult> detectEdges(String filePath) async {
+    final port = ReceivePort();
+
+    _spawnIsolate<EdgeDetectionInput>(
+        startEdgeDetectionIsolate,
+        EdgeDetectionInput(
+            inputPath: filePath,
+            sendPort: port.sendPort
+        ),
+        port
+    );
+
+    return await _subscribeToPort<EdgeDetectionResult>(port);
+  }
+
   static Future<void> startEdgeDetectionIsolate(EdgeDetectionInput edgeDetectionInput) async {
+    EdgeDetectionResult result = await EdgeDetection.detectEdges(edgeDetectionInput.inputPath);
+    edgeDetectionInput.sendPort.send(result);
+  }
+
+  static Future detectEdges2(CameraImage cameraImage, Function? function (EdgeDetectionResult resul)) async {
+    if(isolate==null){
+      receivePort = ReceivePort();
+      receivePort!.listen((message) {
+        if(message==null) return;
+        if(sendPort==null) sendPort = message[0];
+        if(message[1] is EdgeDetectionResult) function(message[1]);
+      });
+      isolate = await Isolate.spawn(startEdgeDetectionIsolate2, EdgeDetectionInput2(
+          cameraImage: cameraImage,
+          sendPort: receivePort!.sendPort
+      ));
+    }
+    else {
+      sendPort!.send(EdgeDetectionInput2(
+          cameraImage: cameraImage,
+          sendPort: receivePort!.sendPort
+      ));
+    }
+  }
+
+  static Future<void> startEdgeDetectionIsolate2(EdgeDetectionInput2 edgeDetectionInput) async {
     receivePort = ReceivePort();
     receivePort!.listen((message) async {
-      EdgeDetectionResult result = await EdgeDetection.detectEdges(message.inputPath);
+      //print('startEdgeDetectionIsolate2 ${message.cameraImage.width}x${message.cameraImage.height}');
+      EdgeDetectionResult result = await EdgeDetection.detectEdges2(message.cameraImage);
       message.sendPort.send([receivePort!.sendPort,result]);
     });
-    EdgeDetectionResult result = await EdgeDetection.detectEdges(edgeDetectionInput.inputPath);
+    EdgeDetectionResult result = await EdgeDetection.detectEdges2(edgeDetectionInput.cameraImage);
     edgeDetectionInput.sendPort.send([receivePort!.sendPort,result]);
   }
 
@@ -23,31 +65,7 @@ class EdgeDetector {
     processImageInput.sendPort.send(true);
   }
 
-  static Future detectEdges(String filePath, Function? function (EdgeDetectionResult resul)) async {
-    if(isolate==null){
-      receivePort = ReceivePort();
-      receivePort!.listen((message) {
-        if(sendPort==null) sendPort = message[0];
-        function(message[1]);
-      });
-      isolate = await _spawnIsolate<EdgeDetectionInput>(
-          startEdgeDetectionIsolate,
-          EdgeDetectionInput(
-              inputPath: filePath,
-              sendPort: receivePort!.sendPort
-          ),
-          receivePort!
-      ) as Isolate?;
-    }
-    else {
-      sendPort!.send(EdgeDetectionInput(
-          inputPath: filePath,
-          sendPort: receivePort!.sendPort
-      ));
-    }
-  }
-
-  Future<bool> processImage(String filePath, EdgeDetectionResult edgeDetectionResult) async {
+  static Future<bool> processImage(String filePath, EdgeDetectionResult edgeDetectionResult) async {
     final port = ReceivePort();
 
     _spawnIsolate<ProcessImageInput>(
@@ -72,7 +90,7 @@ class EdgeDetector {
     );
   }
 
-  Future<T> _subscribeToPort<T>(ReceivePort port) async {
+  static Future<T> _subscribeToPort<T>(ReceivePort port) async {
     StreamSubscription? sub;
     
     var completer = new Completer<T>();
@@ -93,6 +111,16 @@ class EdgeDetectionInput {
   });
 
   String inputPath;
+  SendPort sendPort;
+}
+
+class EdgeDetectionInput2 {
+  EdgeDetectionInput2({
+    required this.cameraImage,
+    required this.sendPort
+  });
+
+  CameraImage cameraImage;
   SendPort sendPort;
 }
 

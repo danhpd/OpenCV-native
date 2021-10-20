@@ -11,6 +11,8 @@ dependencies:
   flutter:
     sdk: flutter
   ffi: ^1.0.0
+  camera:
+
 
 dev_dependencies:
   flutter_test:

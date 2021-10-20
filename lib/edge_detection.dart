@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
-
+import 'package:camera/camera.dart';
 
 class Coordinate extends Struct {
   @Double()
@@ -52,8 +53,12 @@ class EdgeDetectionResult {
 }
 
 typedef DetectEdgesFunction = Pointer<NativeDetectionResult> Function(
-  Pointer<Utf8> imagePath
-);
+  Pointer<Utf8> imagePath);
+
+typedef convert_func = Pointer<NativeDetectionResult> Function(
+    Pointer<Uint8>, Pointer<Uint8>, Pointer<Uint8>, Int32, Int32, Int32, Int32);
+typedef Convert = Pointer<NativeDetectionResult> Function(
+    Pointer<Uint8>, Pointer<Uint8>, Pointer<Uint8>, int, int, int, int);
 
 typedef process_image_function = Int8 Function(
   Pointer<Utf8> imagePath,
@@ -90,6 +95,55 @@ class EdgeDetection {
         .asFunction<DetectEdgesFunction>();
 
     NativeDetectionResult detectionResult = detectEdges(path.toNativeUtf8()).ref;
+
+    return EdgeDetectionResult(
+        topLeft: Offset(
+            detectionResult.topLeft.ref.x, detectionResult.topLeft.ref.y
+        ),
+        topRight: Offset(
+            detectionResult.topRight.ref.x, detectionResult.topRight.ref.y
+        ),
+        bottomLeft: Offset(
+            detectionResult.bottomLeft.ref.x, detectionResult.bottomLeft.ref.y
+        ),
+        bottomRight: Offset(
+            detectionResult.bottomRight.ref.x, detectionResult.bottomRight.ref.y
+        )
+    );
+  }
+
+  static Future<EdgeDetectionResult> detectEdges2(CameraImage cameraImage) async {
+    Pointer<Uint8> p = calloc(cameraImage.planes[0].bytes.length);
+    Pointer<Uint8> p1 = calloc(cameraImage.planes[1].bytes.length);
+    Pointer<Uint8> p2 = calloc(cameraImage.planes[2].bytes.length);
+
+    // Assign the planes data to the pointers of the image
+    Uint8List pointerList = p.asTypedList(cameraImage.planes[0].bytes.length);
+    Uint8List pointerList1 = p1.asTypedList(cameraImage.planes[1].bytes.length);
+    Uint8List pointerList2 = p2.asTypedList(cameraImage.planes[2].bytes.length);
+    pointerList.setRange(
+        0, cameraImage.planes[0].bytes.length, cameraImage.planes[0].bytes);
+    pointerList1.setRange(
+        0, cameraImage.planes[1].bytes.length, cameraImage.planes[1].bytes);
+    pointerList2.setRange(
+        0, cameraImage.planes[2].bytes.length, cameraImage.planes[2].bytes);
+
+    DynamicLibrary nativeEdgeDetection = _getDynamicLibrary();
+
+    final detectEdges = nativeEdgeDetection
+        .lookup<NativeFunction<convert_func>>("detect_edges2")
+        .asFunction<Convert>();
+
+    NativeDetectionResult detectionResult = detectEdges(
+        p,p1,p2,
+        cameraImage.planes[1].bytesPerRow,
+        cameraImage.planes[1].bytesPerPixel!,
+        cameraImage.width,
+        cameraImage.height).ref;
+
+    calloc.free(p);
+    calloc.free(p1);
+    calloc.free(p2);
 
     return EdgeDetectionResult(
         topLeft: Offset(
