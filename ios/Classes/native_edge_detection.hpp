@@ -22,14 +22,14 @@ struct ProcessingInput
 };
 
 extern "C"
-struct DetectionResult *detect_edges(char *str);
+struct DetectionResult *detect_edges_by_image_path(char *str);
 
 extern "C"
-struct DetectionResult *detect_edges2(uint8_t *plane0, uint8_t *plane1, uint8_t *plane2,
+struct DetectionResult *detect_edges_by_camera_image(uint8_t *plane0, uint8_t *plane1, uint8_t *plane2,
                             int bytesPerRow, int bytesPerPixel, int width, int height);
 
 extern "C"
-bool process_image(
+bool crop_image(
     char* path,
     double topLeftX,
     double topLeftY,
@@ -39,4 +39,17 @@ bool process_image(
     double bottomLeftY,
     double bottomRightX,
     double bottomRightY
+);
+extern "C"
+bool convert_to_bw(
+    char* sour_path,
+    char* dest_path
+);
+extern "C"
+bool compress_image(
+    char* sour_path,
+    char* dest_path,
+    int maxWidth,
+    int quality,
+    int threshold
 );

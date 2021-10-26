@@ -151,7 +151,7 @@ vector<vector<cv::Point> > EdgeDetector::find_squares(Mat& image)
                     maxCosine = MAX(maxCosine, cosine);
                 }
 
-                if (maxCosine < 0.2) {
+                if (maxCosine < 0.1) {
                     squares.push_back(approx);
                     usedThresholdLevel.push_back(thresholdLevel);
                 }

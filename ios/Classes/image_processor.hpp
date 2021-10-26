@@ -6,7 +6,9 @@ using namespace std;
 
 class ImageProcessor {
     public:
-    static Mat process_image(Mat img, float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4);
+    static Mat crop_image(Mat img, float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4);
+    public:
+    static Mat convert_to_bw(Mat img);
 
     private:
     static Mat crop_and_transform(Mat img, float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4);

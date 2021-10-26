@@ -28,7 +28,7 @@ struct DetectionResult *create_detection_result(Coordinate *topLeft, Coordinate 
 }
 
 extern "C" __attribute__((visibility("default"))) __attribute__((used))
-struct DetectionResult *detect_edges(char *str) {
+struct DetectionResult *detect_edges_by_image_path(char *str) {
     struct DetectionResult *coordinate = (struct DetectionResult *)malloc(sizeof(struct DetectionResult));
     cv::Mat mat = cv::imread(str);
 
@@ -65,7 +65,7 @@ int getRotatedImageByteIndex(int x, int y, int rotatedImageWidth){
 }
 
 extern "C" __attribute__((visibility("default"))) __attribute__((used))
-struct DetectionResult *detect_edges2(uint8_t *plane0, uint8_t *plane1, uint8_t *plane2,
+struct DetectionResult *detect_edges_by_camera_image(uint8_t *plane0, uint8_t *plane1, uint8_t *plane2,
                 int bytesPerRow, int bytesPerPixel, int width, int height) {
 
     int hexFF = 255;
@@ -116,7 +116,7 @@ struct DetectionResult *detect_edges2(uint8_t *plane0, uint8_t *plane1, uint8_t 
 }
 
 extern "C" __attribute__((visibility("default"))) __attribute__((used))
-bool process_image(
+bool crop_image(
     char *path,
     double topLeftX,
     double topLeftY,
@@ -125,11 +125,9 @@ bool process_image(
     double bottomLeftX,
     double bottomLeftY,
     double bottomRightX,
-    double bottomRightY
-) {
+    double bottomRightY) {
     cv::Mat mat = cv::imread(path);
-
-    cv::Mat resizedMat = ImageProcessor::process_image(
+    cv::Mat resizedMat = ImageProcessor::crop_image(
         mat,
         topLeftX * mat.size().width,
         topLeftY * mat.size().height,
@@ -140,16 +138,43 @@ bool process_image(
         bottomRightX * mat.size().width,
         bottomRightY * mat.size().height
     );
+    return cv::imwrite(path, resizedMat);
+}
 
-    //return cv::imwrite(path, resizedMat);
+extern "C" __attribute__((visibility("default"))) __attribute__((used))
+bool convert_to_bw(char* sour_path, char* dest_path) {
+    cv::Mat mat = cv::imread(sour_path);
+    cv::Mat resizedMat = ImageProcessor::convert_to_bw(mat);
+    return cv::imwrite(dest_path, resizedMat);
+}
 
-    int down_width = 1500;
-    int down_height = resizedMat.size().height*1500/resizedMat.size().width;
-    Mat resized_down;
-    resize(resizedMat, resized_down, Size(down_width, down_height), INTER_LINEAR);
+extern "C" __attribute__((visibility("default"))) __attribute__((used))
+bool compress_image(char* sour_path, char* dest_path, int maxWidth, int quality, int threshold) {
+    cv::Mat mat = cv::imread(sour_path);
+    //std::cout << "jniInit" <<mat.size().width ;
+
+    if(threshold != 0){
+        for(int x = 0; x < mat.size().height; x++){
+            for(int y = 0; y < mat.size().width; y++){
+                uchar *ptr = mat.ptr(x, y);
+                int a = *ptr + *(ptr+1) + *(ptr+2);
+                if(a/3 > threshold){
+                    *ptr = 255;
+                    *(ptr+1) = 255;
+                    *(ptr+2) = 255;
+                }
+            }
+        }
+    }
 
     vector<int> p(2);
     p[0] = IMWRITE_JPEG_QUALITY;
-    p[1] = 10;
-    return cv::imwrite(path, resized_down, p);
+    p[1] = quality;
+
+    if(mat.size().width<maxWidth) return cv::imwrite(dest_path, mat, p);
+
+    int height = mat.size().height*maxWidth/mat.size().width;
+    Mat resized_down;
+    resize(mat, resized_down, Size(maxWidth, height), INTER_LINEAR);
+    return cv::imwrite(dest_path, resized_down, p);
 }

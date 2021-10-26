@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:opencv/edge_detection.dart';
+import 'package:opencv/native_library.dart';
 import 'edge_painter.dart';
 import 'magnifier.dart';
 import 'touch_bubble.dart';

@@ -3,7 +3,8 @@ import 'dart:isolate';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:opencv/edge_detection.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:opencv/native_library.dart';
 import 'package:simple_edge_detection_example/preview_edit_screen.dart';
 import 'edge_detector.dart';
 
@@ -27,8 +28,8 @@ class ScanScreen extends StatefulWidget {
 
 class ScanScreenState extends State<ScanScreen> {
   late CameraController _controller;
-  late Future _initializeControllerFuture;
-  StreamController streamController = new StreamController<EdgeDetectionResult>();
+  StreamController streamController =
+      new StreamController<EdgeDetectionResult>();
   bool isProcessing = false;
   bool isInited = false;
   bool isCapturing = false;
@@ -36,8 +37,7 @@ class ScanScreenState extends State<ScanScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeControllerFuture = initCam();
-
+    initCam();
   }
 
   Future<String> initCam() async {
@@ -60,7 +60,7 @@ class ScanScreenState extends State<ScanScreen> {
     isProcessing = true;
     try {
       start = new DateTime.now().millisecondsSinceEpoch;
-      EdgeDetector.detectEdges2(cameraImage, (EdgeDetectionResult result) {
+      EdgeDetector.detectEdgesByCameraImage(cameraImage, (EdgeDetectionResult result) {
         streamController.sink.add(result);
         isProcessing = false;
         //print('time ${new DateTime.now().millisecondsSinceEpoch - start} ms');
@@ -82,23 +82,51 @@ class ScanScreenState extends State<ScanScreen> {
       setState(() {
         isCapturing = true;
       });
-      await _initializeControllerFuture;
+      //await _initializeControllerFuture;
       await _controller.stopImageStream();
-      //await _controller.pausePreview();
       XFile image = await _controller.takePicture();
+      await _controller.pausePreview();
       print('image path: ${image.path}');
       print('length ${await image.length()}');
-      EdgeDetectionResult result = await EdgeDetector.detectEdges(image.path);
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => PreviewEditScreen(
-            imagePath: image.path,
-            edgeDetectionResult: result,
-          ),
+          builder: (context) => PreviewEditScreen(imagePath: image.path),
         ),
       );
-      //await _controller.resumePreview();
+      print('resumePreview');
+
+      await _controller.resumePreview();
+      await _controller.startImageStream(_processCameraImage);
+      setState(() {
+        isCapturing = false;
+      });
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  Future<void> startGalery() async {
+    try {
+      setState(() {
+        isCapturing = true;
+      });
+      //await _initializeControllerFuture;
+      await _controller.stopImageStream();
+      await _controller.pausePreview();
+      ImagePicker picker = ImagePicker();
+      XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      print('image path: ${image!.path}');
+      print('length ${await image.length()}');
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PreviewEditScreen(imagePath: image.path),
+        ),
+      );
+      print('resumePreview');
+
+      await _controller.resumePreview();
       await _controller.startImageStream(_processCameraImage);
       setState(() {
         isCapturing = false;
@@ -113,28 +141,30 @@ class ScanScreenState extends State<ScanScreen> {
     print('build view');
     return Scaffold(
       body: Stack(children: [
-        isInited ? CameraPreview(_controller) : CircularProgressIndicator(),
+        isInited
+            ? CameraPreview(_controller)
+            : Center(child: CircularProgressIndicator()),
         StreamBuilder(
             stream: streamController.stream,
             builder: (context, snapshot) {
               //print('StreamBuilder $snapshot');
-              if (isCapturing) return Container();
-              else if (snapshot.hasData) {
+              if (snapshot.hasData) {
                 return CustomPaint(
-                  foregroundPainter: RectanglePainter(snapshot.data as EdgeDetectionResult),
+                  foregroundPainter:
+                      RectanglePainter(snapshot.data as EdgeDetectionResult),
                   child: Container(),
                 );
               } else
                 return Container();
             }),
-        if (isCapturing) Container(
+        if (isCapturing)
+          Container(
             child: Center(child: CircularProgressIndicator()),
             color: Color.fromRGBO(0, 0, 0, 0.5),
-        ),
-
+          ),
       ]),
       floatingActionButton: FloatingActionButton(
-        onPressed: startCapture,
+        onPressed: startGalery,
         child: const Icon(Icons.camera_alt),
       ),
     );
@@ -154,18 +184,21 @@ class RectanglePainter extends CustomPainter {
       ..strokeWidth = 2.0;
 
     var path = Path();
-    path.moveTo(_result.topLeft.dx*size.width, _result.topLeft.dy*size.height);
-    path.lineTo(_result.topRight.dx*size.width, _result.topRight.dy*size.height);
-    path.lineTo(_result.bottomRight.dx*size.width, _result.bottomRight.dy*size.height);
-    path.lineTo(_result.bottomLeft.dx*size.width, _result.bottomLeft.dy*size.height);
-    path.lineTo(_result.topLeft.dx*size.width, _result.topLeft.dy*size.height);
+    path.moveTo(
+        _result.topLeft.dx * size.width, _result.topLeft.dy * size.height);
+    path.lineTo(
+        _result.topRight.dx * size.width, _result.topRight.dy * size.height);
+    path.lineTo(_result.bottomRight.dx * size.width,
+        _result.bottomRight.dy * size.height);
+    path.lineTo(_result.bottomLeft.dx * size.width,
+        _result.bottomLeft.dy * size.height);
+    path.lineTo(
+        _result.topLeft.dx * size.width, _result.topLeft.dy * size.height);
     canvas.drawPath(path, paint);
-
   }
 
   @override
   bool shouldRepaint(RectanglePainter oldDelegate) {
     return true;
   }
-
 }

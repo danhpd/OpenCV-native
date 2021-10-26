@@ -52,15 +52,41 @@ class EdgeDetectionResult {
   Offset bottomRight;
 }
 
-typedef DetectEdgesFunction = Pointer<NativeDetectionResult> Function(
+typedef DetectEdgesImagePath = Pointer<NativeDetectionResult> Function(
   Pointer<Utf8> imagePath);
 
-typedef convert_func = Pointer<NativeDetectionResult> Function(
+typedef detect_edges_camera_function = Pointer<NativeDetectionResult> Function(
     Pointer<Uint8>, Pointer<Uint8>, Pointer<Uint8>, Int32, Int32, Int32, Int32);
-typedef Convert = Pointer<NativeDetectionResult> Function(
+typedef DetectEdgeCameraFunction = Pointer<NativeDetectionResult> Function(
     Pointer<Uint8>, Pointer<Uint8>, Pointer<Uint8>, int, int, int, int);
 
-typedef process_image_function = Int8 Function(
+typedef convert_to_bw_function = Int8 Function(
+    Pointer<Utf8> imagePath,
+    Pointer<Utf8> destPath,
+    );
+
+typedef ConvertToBwFunction = int Function(
+    Pointer<Utf8> imagePath,
+    Pointer<Utf8> destPath,
+    );
+
+typedef compress_function = Int8 Function(
+    Pointer<Utf8> sourPath,
+    Pointer<Utf8> destPath,
+    Int8 maxWith,
+    Int8 quality,
+    Int8 threshold
+    );
+
+typedef CompressFunction = int Function(
+    Pointer<Utf8> sourPath,
+    Pointer<Utf8> destPath,
+    int maxWith,
+    int quality,
+    int threshold
+    );
+
+typedef crop_image_function = Int8 Function(
   Pointer<Utf8> imagePath,
   Double topLeftX,
   Double topLeftY,
@@ -72,7 +98,7 @@ typedef process_image_function = Int8 Function(
   Double bottomRightY
 );
 
-typedef ProcessImageFunction = int Function(
+typedef CropImageFunction = int Function(
   Pointer<Utf8> imagePath,
   double topLeftX,
   double topLeftY,
@@ -86,13 +112,15 @@ typedef ProcessImageFunction = int Function(
 
 // https://github.com/dart-lang/samples/blob/master/ffi/structs/structs.dart
 
-class EdgeDetection {
-  static Future<EdgeDetectionResult> detectEdges(String path) async {
-    DynamicLibrary nativeEdgeDetection = _getDynamicLibrary();
+class NativeLibrary {
+  static DynamicLibrary nativeLibrary = Platform.isAndroid
+      ? DynamicLibrary.open("libnative_edge_detection.so")
+      : DynamicLibrary.process();
 
-    final detectEdges = nativeEdgeDetection
-        .lookup<NativeFunction<DetectEdgesFunction>>("detect_edges")
-        .asFunction<DetectEdgesFunction>();
+  static Future<EdgeDetectionResult> detectEdgesByImagePath(String path) async {
+    final detectEdges = nativeLibrary
+        .lookup<NativeFunction<DetectEdgesImagePath>>("detect_edges_by_image_path")
+        .asFunction<DetectEdgesImagePath>();
 
     NativeDetectionResult detectionResult = detectEdges(path.toNativeUtf8()).ref;
 
@@ -112,7 +140,7 @@ class EdgeDetection {
     );
   }
 
-  static Future<EdgeDetectionResult> detectEdges2(CameraImage cameraImage) async {
+  static Future<EdgeDetectionResult> detectEdgesByCameraImage(CameraImage cameraImage) async {
     Pointer<Uint8> p = calloc(cameraImage.planes[0].bytes.length);
     Pointer<Uint8> p1 = calloc(cameraImage.planes[1].bytes.length);
     Pointer<Uint8> p2 = calloc(cameraImage.planes[2].bytes.length);
@@ -128,11 +156,9 @@ class EdgeDetection {
     pointerList2.setRange(
         0, cameraImage.planes[2].bytes.length, cameraImage.planes[2].bytes);
 
-    DynamicLibrary nativeEdgeDetection = _getDynamicLibrary();
-
-    final detectEdges = nativeEdgeDetection
-        .lookup<NativeFunction<convert_func>>("detect_edges2")
-        .asFunction<Convert>();
+    final detectEdges = nativeLibrary
+        .lookup<NativeFunction<detect_edges_camera_function>>("detect_edges_by_camera_image")
+        .asFunction<DetectEdgeCameraFunction>();
 
     NativeDetectionResult detectionResult = detectEdges(
         p,p1,p2,
@@ -161,13 +187,10 @@ class EdgeDetection {
     );
   }
 
-  static Future<bool> processImage(String path, EdgeDetectionResult result) async {
-    DynamicLibrary nativeEdgeDetection = _getDynamicLibrary();
-
-    final processImage = nativeEdgeDetection
-        .lookup<NativeFunction<process_image_function>>("process_image")
-        .asFunction<ProcessImageFunction>();
-
+  static Future<bool> cropImage(String path, EdgeDetectionResult result) async {
+    final processImage = nativeLibrary
+        .lookup<NativeFunction<crop_image_function>>("crop_image")
+        .asFunction<CropImageFunction>();
 
     return processImage(
         path.toNativeUtf8(),
@@ -182,10 +205,27 @@ class EdgeDetection {
     ) == 1;
   }
 
-  static DynamicLibrary _getDynamicLibrary() {
-    final DynamicLibrary nativeEdgeDetection = Platform.isAndroid
-        ? DynamicLibrary.open("libnative_edge_detection.so")
-        : DynamicLibrary.process();
-    return nativeEdgeDetection;
+  static Future<bool> convertToBW(String sourPath, String destPath) async {
+    final processImage = nativeLibrary
+        .lookup<NativeFunction<convert_to_bw_function>>("convert_to_bw")
+        .asFunction<ConvertToBwFunction>();
+    return processImage(
+        sourPath.toNativeUtf8(),
+        destPath.toNativeUtf8(),
+    ) == 1;
   }
+
+  static Future<bool> compressImage(String sourPath, String destPath, int maxWidth, int quality, int threshold) async {
+    final processImage = nativeLibrary
+        .lookup<NativeFunction<compress_function>>("compress_image")
+        .asFunction<CompressFunction>();
+    return processImage(
+        sourPath.toNativeUtf8(),
+        destPath.toNativeUtf8(),
+        maxWidth,
+        quality,
+        threshold
+    ) == 1;
+  }
+
 }

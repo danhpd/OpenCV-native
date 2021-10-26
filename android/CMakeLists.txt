@@ -10,9 +10,3 @@ set(SOURCES
 )
 add_library(native_edge_detection SHARED ${SOURCES})
 target_link_libraries(native_edge_detection lib_opencv)
-add_library( convertImage
-    # Sets the library as a shared library.
-    SHARED
-    # Provides a relative path to your source file(s).
-    ../ios/Classes/converter.c
-)

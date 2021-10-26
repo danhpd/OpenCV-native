@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'package:opencv/edge_detection.dart';
+import 'package:opencv/native_library.dart';
 import 'package:flutter/material.dart';
 
 import 'edge_detection_shape/edge_detection_shape.dart';

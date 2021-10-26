@@ -10,11 +10,16 @@ Point2f computePoint(int p1, int p2) {
     return pt;
 }
 
-Mat ImageProcessor::process_image(Mat img, float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4) {
-    cvtColor(img, img, COLOR_BGR2GRAY);
+Mat ImageProcessor::crop_image(Mat img, float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4) {
+    //cvtColor(img, img, COLOR_BGR2GRAY);
     Mat dst = ImageProcessor::crop_and_transform(img, x1, y1, x2, y2, x3, y3, x4, y4);
-    adaptiveThreshold(dst, dst, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, 9, 10);
+    //adaptiveThreshold(dst, dst, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 21, 10);
     return dst;
+}
+Mat ImageProcessor::convert_to_bw(Mat img) {
+    cvtColor(img, img, COLOR_BGR2GRAY);
+    adaptiveThreshold(img, img, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 21, 10);
+    return img;
 }
 
 Mat ImageProcessor::crop_and_transform(Mat img, float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4) {
