@@ -41,13 +41,14 @@ class _DisplayPictureScreenState extends State<PreviewEditScreen> {
   }
 
   _detectEdge() async {
-    //edgeDetectionResult = await EdgeDetector.detectEdges(widget.imagePath);
-    edgeDetectionResult = EdgeDetectionResult(
-      topLeft: Offset(0, 0),
-      topRight: Offset(1, 0),
-      bottomRight: Offset(1, 1),
-      bottomLeft: Offset(0, 1),
-    );
+    edgeDetectionResult =
+        await EdgeDetector.detectEdgesByImagePath(widget.imagePath);
+    // edgeDetectionResult = EdgeDetectionResult(
+    //   topLeft: Offset(0, 0),
+    //   topRight: Offset(1, 0),
+    //   bottomRight: Offset(1, 1),
+    //   bottomLeft: Offset(0, 1),
+    // );
     setState(() {});
   }
 
@@ -62,13 +63,14 @@ class _DisplayPictureScreenState extends State<PreviewEditScreen> {
   }
 
   bool isProcessing = false;
-  Future _processImage(
-      String filePath, EdgeDetectionResult edgeDetectionResult) async {
+  Future _processImage(String filePath, EdgeDetectionResult eresult) async {
     setState(() {
       isProcessing = true;
     });
     int start = new DateTime.now().millisecondsSinceEpoch;
-    bool result = await ImageProcessor.compressImage(filePath, filePath, 2000, 20);
+    bool result = await ImageProcessor.cropImage(filePath, eresult);
+    await ImageProcessor.compressImage(filePath, filePath, 1000, 12);
+
     print(
         'cropImage time ${new DateTime.now().millisecondsSinceEpoch - start} ms');
 
@@ -103,12 +105,88 @@ class _DisplayPictureScreenState extends State<PreviewEditScreen> {
     Share.shareFiles([filePath], text: 'Great picture');
   }
 
+  Widget _getAppBar() {
+    String dropdownValue = 'One';
+    return Container(
+      color: Colors.blue,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: ElevatedButton(onPressed: () {}, child: Icon(Icons.chevron_left)),
+          ),
+          Expanded(
+            child: DropdownButton<String>(
+              value: dropdownValue,
+              icon: const Icon(Icons.keyboard_arrow_down_sharp),
+              iconSize: 24,
+              elevation: 16,
+              dropdownColor: Colors.blue,
+              style: const TextStyle(color: Colors.white),
+              isExpanded: true,
+              underline: Container(
+                height: 2,
+                color: Colors.white10,
+              ),
+              onChanged: (String? newValue) {
+                setState(() {
+                  dropdownValue = newValue!;
+                });
+              },
+              items: <String>['One', 'Two', 'Free', 'Four']
+                  .map<DropdownMenuItem<String>>((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: ElevatedButton(onPressed: () {}, child: Icon(Icons.rotate_right)),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: ElevatedButton(onPressed: () {}, child: Icon(Icons.invert_colors)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _getBottomBar() {
+    return Container(
+      color: Colors.blue,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          ElevatedButton(onPressed: () {}, child: Icon(Icons.image)),
+          isProcessing
+              ? Container(
+                  child: Center(
+                      child: CircularProgressIndicator(
+                  color: Colors.white,
+                )))
+              : ElevatedButton(
+                  onPressed: () {
+                    if (croppedImagePath == null) {
+                      _processImage(widget.imagePath, edgeDetectionResult!);
+                    }
+                  },
+                  child: Icon(Icons.flip_camera_ios)),
+          ElevatedButton(onPressed: () {}, child: Icon(Icons.add_circle)),
+        ],
+      ),
+    );
+  }
+
   Widget _getMainView() {
     if (croppedImagePath != null)
-      return Center(
-          child: PhotoView(
+      return PhotoView(
         imageProvider: FileImage(File(croppedImagePath!)),
-      ));
+      );
     if (edgeDetectionResult != null) {
       return ImagePreview(
         imagePath: widget.imagePath,
@@ -121,20 +199,17 @@ class _DisplayPictureScreenState extends State<PreviewEditScreen> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Scaffold(
-        // The image is stored as a file on the device. Use the `Image.file`
-        // constructor with the given path to display the image.
-        body: _getMainView(),
-        floatingActionButton: FloatingActionButton(
-          child: isProcessing
-              ? Container(
-                  child: Center(child: CircularProgressIndicator()))
-              : Icon(Icons.check),
-          onPressed: () {
-            if (croppedImagePath == null) {
-              _processImage(widget.imagePath, edgeDetectionResult!);
-            }
-          },
+      child: Center(
+        child: Scaffold(
+          // The image is stored as a file on the device. Use the `Image.file`
+          // constructor with the given path to display the image.
+          body: Column(
+            children: [
+              _getAppBar(),
+              Expanded(child: _getMainView()),
+              _getBottomBar()
+            ],
+          ),
         ),
       ),
     );

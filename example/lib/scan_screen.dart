@@ -61,7 +61,9 @@ class ScanScreenState extends State<ScanScreen> {
     try {
       start = new DateTime.now().millisecondsSinceEpoch;
       EdgeDetector.detectEdgesByCameraImage(cameraImage, (EdgeDetectionResult result) {
-        streamController.sink.add(result);
+        if(result.topLeft.dx!=0 && result.topLeft.dy!=0){
+          streamController.sink.add(result);
+        }
         isProcessing = false;
         //print('time ${new DateTime.now().millisecondsSinceEpoch - start} ms');
       });
@@ -164,7 +166,7 @@ class ScanScreenState extends State<ScanScreen> {
           ),
       ]),
       floatingActionButton: FloatingActionButton(
-        onPressed: startGalery,
+        onPressed: startCapture,
         child: const Icon(Icons.camera_alt),
       ),
     );
