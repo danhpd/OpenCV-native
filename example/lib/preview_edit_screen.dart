@@ -1,112 +1,52 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
-import 'package:opencv/native_library.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:photo_view/photo_view.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
+import 'package:simple_edge_detection_example/blocs/preview_edit_bloc.dart';
+import 'package:simple_edge_detection_example/events/preview_edit_event.dart';
+import 'package:simple_edge_detection_example/states/preview_edit_state.dart';
 import 'cropping_preview.dart';
-import 'edge_detector.dart';
-import 'image_processor.dart';
 
 class PreviewEditScreen extends StatefulWidget {
   final String imagePath;
+  String? targetPath;
+  final pdf;
 
-  PreviewEditScreen({Key? key, required this.imagePath}) : super(key: key);
+  PreviewEditScreen({Key? key, required this.imagePath, this.pdf})
+      : super(key: key);
 
   @override
-  _DisplayPictureScreenState createState() => _DisplayPictureScreenState();
+  PreviewEditScreenState createState() => PreviewEditScreenState();
 }
 
-class _DisplayPictureScreenState extends State<PreviewEditScreen> {
-  EdgeDetectionResult? edgeDetectionResult;
-  String? croppedImagePath;
-  var pdf;
-
+class PreviewEditScreenState extends State<PreviewEditScreen> {
   @override
   void initState() {
     super.initState();
-    _detectEdge();
-    //pdf = pw.Document();
+    widget.targetPath = widget.imagePath;
+    BlocProvider.of<PreviewEditBloc>(context)
+        .add(DetectEdgeEvent(imagePath: widget.imagePath));
     // var image = pw.MemoryImage(
     //   File(widget.imagePath).readAsBytesSync(),
     // );
     // pdf.addPage(pw.Page(build: (pw.Context context) {
     //   return pw.Center(
-    //     child: pw.Image(image),
+    //
+    //     child: pw.Image(image, fit: pw.BoxFit.contain),
     //   ); // Center
     // }));
-  }
-
-  _detectEdge() async {
-    edgeDetectionResult =
-        await EdgeDetector.detectEdgesByImagePath(widget.imagePath);
-    // edgeDetectionResult = EdgeDetectionResult(
-    //   topLeft: Offset(0, 0),
-    //   topRight: Offset(1, 0),
-    //   bottomRight: Offset(1, 1),
-    //   bottomLeft: Offset(0, 1),
-    // );
-    setState(() {});
-  }
-
-  Future<String> get _localPath async {
-    final directory = await getApplicationDocumentsDirectory();
-    return directory.path;
   }
 
   Future<File> get _localFile async {
-    final path = await _localPath;
-    return File('$path/counter.pdf');
-  }
-
-  bool isProcessing = false;
-  Future _processImage(String filePath, EdgeDetectionResult eresult) async {
-    setState(() {
-      isProcessing = true;
-    });
-    int start = new DateTime.now().millisecondsSinceEpoch;
-    bool result = await ImageProcessor.cropImage(filePath, eresult);
-    await ImageProcessor.compressImage(filePath, filePath, 1000, 12);
-
-    print(
-        'cropImage time ${new DateTime.now().millisecondsSinceEpoch - start} ms');
-
-    if (result == false) {
-      return;
-    }
-
-    print('length cropped ${File(filePath).lengthSync()}');
-    // var image = pw.MemoryImage(
-    //   File(filePath).readAsBytesSync(),
-    // );
-    // pdf.addPage(pw.Page(build: (pw.Context context) {
-    //   return pw.Center(
-    //     child: pw.Image(image),
-    //   ); // Center
-    // }));
-    //
-    // final file = await _localFile;
-    // await file.writeAsBytes(await pdf.save());
-    // print('pdf ${pdf.toString()}');
-    // print('pdf ${file.path}');
-
-    //print('length cropped ${file.lengthSync()}');
-    //Image image = Image.file(File(filePath));
-    //print('size ${image.width}x${image.height}');
-    setState(() {
-      isProcessing = false;
-      imageCache!.clearLiveImages();
-      imageCache!.clear();
-      croppedImagePath = filePath;
-    });
-    Share.shareFiles([filePath], text: 'Great picture');
+    final directory = await getTemporaryDirectory();
+    return File('${directory.path}/counter.pdf');
   }
 
   Widget _getAppBar() {
-    String dropdownValue = 'One';
+    String dropdownValue = 'medium';
     return Container(
       color: Colors.blue,
       child: Row(
@@ -114,7 +54,8 @@ class _DisplayPictureScreenState extends State<PreviewEditScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: ElevatedButton(onPressed: () {}, child: Icon(Icons.chevron_left)),
+            child: ElevatedButton(
+                onPressed: () {}, child: Icon(Icons.chevron_left)),
           ),
           Expanded(
             child: DropdownButton<String>(
@@ -123,7 +64,7 @@ class _DisplayPictureScreenState extends State<PreviewEditScreen> {
               iconSize: 24,
               elevation: 16,
               dropdownColor: Colors.blue,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.white, ),
               isExpanded: true,
               underline: Container(
                 height: 2,
@@ -132,9 +73,15 @@ class _DisplayPictureScreenState extends State<PreviewEditScreen> {
               onChanged: (String? newValue) {
                 setState(() {
                   dropdownValue = newValue!;
+                  BlocProvider.of<PreviewEditBloc>(context).add(
+                      CompressImageEvent(
+                        quality: dropdownValue,
+                        imagePath: widget.imagePath,
+                      )
+                  );
                 });
               },
-              items: <String>['One', 'Two', 'Free', 'Four']
+              items: <String>['low', 'medium', 'high', 'original']
                   .map<DropdownMenuItem<String>>((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
@@ -145,14 +92,51 @@ class _DisplayPictureScreenState extends State<PreviewEditScreen> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: ElevatedButton(onPressed: () {}, child: Icon(Icons.rotate_right)),
+            child: ElevatedButton(
+                onPressed: () {}, child: Icon(Icons.rotate_right)),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: ElevatedButton(onPressed: () {}, child: Icon(Icons.invert_colors)),
+            child: ElevatedButton(
+                onPressed: () {
+                  BlocProvider.of<PreviewEditBloc>(context)
+                      .add(ConvertBwEvent(imagePath: widget.imagePath));
+                }, child: Icon(Icons.invert_colors)),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _getMainView() {
+    return BlocBuilder<PreviewEditBloc, PreviewEditState>(
+      builder: (context, state) {
+        if (state is CropCompleteState) {
+          print('path ${state.imagePath}');
+          print('length cropped ${File(state.imagePath).lengthSync()}');
+          return PhotoView(
+            imageProvider: FileImage(File(state.imagePath)),
+          );
+        }
+        else if (state is CompressCompleteState) {
+          print('path ${state.imagePath}');
+          print('length cropped ${File(state.imagePath).lengthSync()}');
+          widget.targetPath = state.imagePath;
+          return PhotoView(
+            imageProvider: FileImage(File(state.imagePath)),
+          );
+        }
+        else if (state is EdgeDetectionCompleteState) {
+          return ImagePreview(
+            imagePath: widget.imagePath,
+            edgeDetectionResult: state.edgeDetectionResult,
+          );
+        }
+        return Stack(children: [
+          Center(child: Image(image: FileImage(File(widget.imagePath)))),
+          Center(child: CircularProgressIndicator(color: Colors.white)),
+        ]);
+      },
     );
   }
 
@@ -163,53 +147,43 @@ class _DisplayPictureScreenState extends State<PreviewEditScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           ElevatedButton(onPressed: () {}, child: Icon(Icons.image)),
-          isProcessing
-              ? Container(
-                  child: Center(
-                      child: CircularProgressIndicator(
-                  color: Colors.white,
-                )))
-              : ElevatedButton(
-                  onPressed: () {
-                    if (croppedImagePath == null) {
-                      _processImage(widget.imagePath, edgeDetectionResult!);
-                    }
-                  },
-                  child: Icon(Icons.flip_camera_ios)),
-          ElevatedButton(onPressed: () {}, child: Icon(Icons.add_circle)),
+          ElevatedButton(
+              onPressed: () {
+                PreviewEditState _state =
+                    BlocProvider.of<PreviewEditBloc>(context).state;
+                if (_state is EdgeDetectionCompleteState) {
+                  BlocProvider.of<PreviewEditBloc>(context).add(
+                      CropImageEvent(
+                          imagePath: widget.imagePath,
+                          result: _state.edgeDetectionResult));
+                }
+              },
+              child: Icon(Icons.crop)
+          ),
+          ElevatedButton(
+              onPressed: () async {
+                // final file = await _localFile;
+                // await file.writeAsBytes(await widget.pdf.save());
+                // print('pdf ${file.lengthSync()}');
+                // print('pdf ${file.path}');
+                Share.shareFiles([widget.targetPath!], text: 'Great picture');
+              },
+              child: Icon(Icons.add_circle)),
         ],
       ),
     );
   }
 
-  Widget _getMainView() {
-    if (croppedImagePath != null)
-      return PhotoView(
-        imageProvider: FileImage(File(croppedImagePath!)),
-      );
-    if (edgeDetectionResult != null) {
-      return ImagePreview(
-        imagePath: widget.imagePath,
-        edgeDetectionResult: edgeDetectionResult!,
-      );
-    }
-    return Image(image: FileImage(File(widget.imagePath)));
-  }
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Center(
-        child: Scaffold(
-          // The image is stored as a file on the device. Use the `Image.file`
-          // constructor with the given path to display the image.
-          body: Column(
-            children: [
-              _getAppBar(),
-              Expanded(child: _getMainView()),
-              _getBottomBar()
-            ],
-          ),
+      child: Scaffold(
+        body: Column(
+          children: [
+            _getAppBar(),
+            Expanded(child: _getMainView()),
+            _getBottomBar(),
+          ],
         ),
       ),
     );

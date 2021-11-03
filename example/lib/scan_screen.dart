@@ -3,17 +3,21 @@ import 'dart:isolate';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:opencv/native_library.dart';
 import 'package:simple_edge_detection_example/preview_edit_screen.dart';
-import 'edge_detector.dart';
+import 'package:pdf/widgets.dart' as pw;
+
+import 'blocs/preview_edit_bloc.dart';
+import 'domain/edge_detector.dart';
 
 main() {
   //WidgetsFlutterBinding.ensureInitialized();
   runApp(
     MaterialApp(
       theme: ThemeData.dark(),
-      home: SafeArea(child: ScanScreen()),
+      home: SafeArea(child: home()),
     ),
   );
 }
@@ -33,25 +37,26 @@ class ScanScreenState extends State<ScanScreen> {
   bool isProcessing = false;
   bool isInited = false;
   bool isCapturing = false;
+  var pdf;
 
   @override
   void initState() {
     super.initState();
-    initCam();
+    pdf = pw.Document();
+    //initCam();
   }
 
-  Future<String> initCam() async {
+  Future<void> initCam() async {
     final cameras = await availableCameras();
     _controller = CameraController(
       cameras.first,
       ResolutionPreset.ultraHigh,
     );
-    await _controller.initialize();
-    _controller.startImageStream(_processCameraImage);
+    // await _controller.initialize();
+    // _controller.startImageStream(_processCameraImage);
     setState(() {
       isInited = true;
     });
-    return 'ok';
   }
 
   int start = 0;
@@ -60,8 +65,9 @@ class ScanScreenState extends State<ScanScreen> {
     isProcessing = true;
     try {
       start = new DateTime.now().millisecondsSinceEpoch;
-      EdgeDetector.detectEdgesByCameraImage(cameraImage, (EdgeDetectionResult result) {
-        if(result.topLeft.dx!=0 && result.topLeft.dy!=0){
+      EdgeDetector.detectEdgesByCameraImage(cameraImage,
+          (EdgeDetectionResult result) {
+        if (result.topLeft.dx != 0 && result.topLeft.dy != 0) {
           streamController.sink.add(result);
         }
         isProcessing = false;
@@ -87,44 +93,18 @@ class ScanScreenState extends State<ScanScreen> {
       //await _initializeControllerFuture;
       await _controller.stopImageStream();
       XFile image = await _controller.takePicture();
+      // ImagePicker picker = ImagePicker();
+      // XFile? image = await picker.pickImage(source: ImageSource.gallery);
       await _controller.pausePreview();
       print('image path: ${image.path}');
       print('length ${await image.length()}');
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => PreviewEditScreen(imagePath: image.path),
-        ),
-      );
-      print('resumePreview');
-
-      await _controller.resumePreview();
-      await _controller.startImageStream(_processCameraImage);
-      setState(() {
-        isCapturing = false;
-      });
-    } catch (e) {
-      print(e);
-    }
-  }
-
-  Future<void> startGalery() async {
-    try {
-      setState(() {
-        isCapturing = true;
-      });
-      //await _initializeControllerFuture;
-      await _controller.stopImageStream();
-      await _controller.pausePreview();
-      ImagePicker picker = ImagePicker();
-      XFile? image = await picker.pickImage(source: ImageSource.gallery);
-      print('image path: ${image!.path}');
-      print('length ${await image.length()}');
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PreviewEditScreen(imagePath: image.path),
-        ),
+            builder: (context) => BlocProvider<PreviewEditBloc>(
+                  create: (context) => PreviewEditBloc(),
+                  child: PreviewEditScreen(imagePath: image.path),
+                )),
       );
       print('resumePreview');
 
@@ -202,5 +182,32 @@ class RectanglePainter extends CustomPainter {
   @override
   bool shouldRepaint(RectanglePainter oldDelegate) {
     return true;
+  }
+}
+
+class home extends StatelessWidget {
+  const home({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ElevatedButton(
+        onPressed: () async {
+          ImagePicker picker = ImagePicker();
+          XFile? image = await picker.pickImage(source: ImageSource.gallery);
+          print('image path: ${image!.path}');
+          print('length ${await image.length()}');
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => BlocProvider<PreviewEditBloc>(
+                      create: (context) => PreviewEditBloc(),
+                      child: PreviewEditScreen(imagePath: image.path),
+                    )),
+          );
+        },
+        child: Text("click"),
+      ),
+    );
   }
 }

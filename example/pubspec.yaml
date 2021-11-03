@@ -19,7 +19,8 @@ dependencies:
   ffi: ^1.0.0
   pdf: ^3.6.0
   share_plus: ^3.0.4
-  flutter_bloc: ^6.0.1
+  flutter_bloc: 7.3.1
+  equatable:
   opencv:
     path: ../
 

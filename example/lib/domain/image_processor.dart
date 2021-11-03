@@ -3,6 +3,10 @@ import 'dart:isolate';
 import 'package:opencv/native_library.dart';
 
 class ImageProcessor {
+  static Isolate? isolate;
+  static ReceivePort? receivePort;
+  static SendPort? sendPort;
+
   static Future<void> _cropImageIsolate(ProcessImageInput processImageInput) async {
     print('time1 ${new DateTime.now().millisecondsSinceEpoch - processImageInput.time!} ms');
     await NativeLibrary.cropImage(processImageInput.inputPath, processImageInput.edgeDetectionResult!);
@@ -27,7 +31,7 @@ class ImageProcessor {
 
   static Future<void> _convertToBwIsolate(ProcessImageInput processImageInput) async {
     print('time1 ${new DateTime.now().millisecondsSinceEpoch - processImageInput.time!} ms');
-    await NativeLibrary.convertToBW(processImageInput.inputPath, processImageInput.inputPath);
+    await NativeLibrary.convertToBW(processImageInput.inputPath, processImageInput.destPath!);
     print('time2 ${new DateTime.now().millisecondsSinceEpoch - processImageInput.time!} ms');
     processImageInput.sendPort.send(true);
   }
