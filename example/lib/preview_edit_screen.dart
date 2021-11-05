@@ -7,15 +7,18 @@ import 'package:photo_view/photo_view.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:simple_edge_detection_example/blocs/preview_edit_bloc.dart';
 import 'package:simple_edge_detection_example/events/preview_edit_event.dart';
+import 'package:simple_edge_detection_example/scan_screen.dart';
 import 'package:simple_edge_detection_example/states/preview_edit_state.dart';
-import 'cropping_preview.dart';
+import 'edge_detection_shape/cropping_preview.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 class PreviewEditScreen extends StatefulWidget {
   final String imagePath;
   String? targetPath;
   final pdf;
+  Count count;
 
-  PreviewEditScreen({Key? key, required this.imagePath, this.pdf})
+  PreviewEditScreen({Key? key, required this.imagePath, this.pdf, required this.count})
       : super(key: key);
 
   @override
@@ -108,12 +111,29 @@ class PreviewEditScreenState extends State<PreviewEditScreen> {
     );
   }
 
+  Future<void> saveFile(String filePath) async {
+    var image = pw.MemoryImage(
+      File(filePath).readAsBytesSync(),
+    );
+    widget.pdf.addPage(pw.Page(build: (pw.Context context) {
+      return pw.Center(
+        child: pw.Image(image),
+      ); // Center
+    },margin: pw.EdgeInsets.zero));
+    widget.count.count = widget.count.count +1;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text("${widget.count.count} - ${File(filePath).lengthSync()/1024}kb"),
+    ));
+
+  }
+
   Widget _getMainView() {
     return BlocBuilder<PreviewEditBloc, PreviewEditState>(
       builder: (context, state) {
         if (state is CropCompleteState) {
           print('path ${state.imagePath}');
           print('length cropped ${File(state.imagePath).lengthSync()}');
+          widget.targetPath = state.imagePath;
           return PhotoView(
             imageProvider: FileImage(File(state.imagePath)),
           );
@@ -149,26 +169,29 @@ class PreviewEditScreenState extends State<PreviewEditScreen> {
           ElevatedButton(onPressed: () {}, child: Icon(Icons.image)),
           ElevatedButton(
               onPressed: () {
-                PreviewEditState _state =
-                    BlocProvider.of<PreviewEditBloc>(context).state;
-                if (_state is EdgeDetectionCompleteState) {
-                  BlocProvider.of<PreviewEditBloc>(context).add(
-                      CropImageEvent(
-                          imagePath: widget.imagePath,
-                          result: _state.edgeDetectionResult));
-                }
+                // PreviewEditState _state =
+                //     BlocProvider.of<PreviewEditBloc>(context).state;
+                // if (_state is EdgeDetectionCompleteState) {
+                //   BlocProvider.of<PreviewEditBloc>(context).add(
+                //       CropImageEvent(
+                //           imagePath: widget.imagePath,
+                //           result: _state.edgeDetectionResult));
+                // }
+                saveFile(widget.targetPath!);
+                Navigator.pop(context);
+
               },
-              child: Icon(Icons.crop)
+              child: Icon(Icons.add_circle)
           ),
           ElevatedButton(
               onPressed: () async {
-                // final file = await _localFile;
-                // await file.writeAsBytes(await widget.pdf.save());
-                // print('pdf ${file.lengthSync()}');
-                // print('pdf ${file.path}');
+                final file = await _localFile;
+                await file.writeAsBytes(await widget.pdf.save());
+                print('pdf ${file.lengthSync()}');
+                print('pdf ${file.path}');
                 Share.shareFiles([widget.targetPath!], text: 'Great picture');
               },
-              child: Icon(Icons.add_circle)),
+              child: Icon(Icons.share)),
         ],
       ),
     );

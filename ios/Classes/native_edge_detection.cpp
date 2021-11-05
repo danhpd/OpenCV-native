@@ -138,6 +138,18 @@ bool crop_image(
         bottomRightX * mat.size().width,
         bottomRightY * mat.size().height
     );
+    /*
+        vector<int> p(2);
+        p[0] = IMWRITE_JPEG_QUALITY;
+        p[1] = 32;
+
+        if(resizedMat.size().width<1000) return cv::imwrite(path, mat, p);
+
+        int height = resizedMat.size().height*1000/resizedMat.size().width;
+        Mat resized_down;
+        resize(resizedMat, resized_down, Size(1000, height), INTER_LINEAR);
+        return cv::imwrite(path, resized_down, p);
+        */
     return cv::imwrite(path, resizedMat);
 }
 

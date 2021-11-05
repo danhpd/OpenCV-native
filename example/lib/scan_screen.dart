@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -37,13 +36,13 @@ class ScanScreenState extends State<ScanScreen> {
   bool isProcessing = false;
   bool isInited = false;
   bool isCapturing = false;
-  var pdf;
+  var pdf = pw.Document();
+  Count count = Count();
 
   @override
   void initState() {
     super.initState();
-    pdf = pw.Document();
-    //initCam();
+    initCam();
   }
 
   Future<void> initCam() async {
@@ -52,8 +51,8 @@ class ScanScreenState extends State<ScanScreen> {
       cameras.first,
       ResolutionPreset.ultraHigh,
     );
-    // await _controller.initialize();
-    // _controller.startImageStream(_processCameraImage);
+    await _controller.initialize();
+    _controller.startImageStream(_processCameraImage);
     setState(() {
       isInited = true;
     });
@@ -103,7 +102,7 @@ class ScanScreenState extends State<ScanScreen> {
         MaterialPageRoute(
             builder: (context) => BlocProvider<PreviewEditBloc>(
                   create: (context) => PreviewEditBloc(),
-                  child: PreviewEditScreen(imagePath: image.path),
+                  child: PreviewEditScreen(imagePath: image.path, pdf: pdf, count: count,),
                 )),
       );
       print('resumePreview');
@@ -186,28 +185,36 @@ class RectanglePainter extends CustomPainter {
 }
 
 class home extends StatelessWidget {
-  const home({Key? key}) : super(key: key);
+  final pdf = pw.Document();
+  final Count count = Count();
+  home({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ElevatedButton(
-        onPressed: () async {
-          ImagePicker picker = ImagePicker();
-          XFile? image = await picker.pickImage(source: ImageSource.gallery);
-          print('image path: ${image!.path}');
-          print('length ${await image.length()}');
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => BlocProvider<PreviewEditBloc>(
-                      create: (context) => PreviewEditBloc(),
-                      child: PreviewEditScreen(imagePath: image.path),
-                    )),
-          );
-        },
-        child: Text("click"),
+    return Scaffold(
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () async {
+            ImagePicker picker = ImagePicker();
+            XFile? image = await picker.pickImage(source: ImageSource.gallery);
+            print('image path: ${image!.path}');
+            print('length ${await image.length()}');
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => BlocProvider<PreviewEditBloc>(
+                        create: (context) => PreviewEditBloc(),
+                        child: PreviewEditScreen(imagePath: image.path, pdf: pdf, count: count,),
+                      )),
+            );
+          },
+          child: Text("click"),
+        ),
       ),
     );
   }
+}
+
+class Count {
+  int count =0;
 }

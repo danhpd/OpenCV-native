@@ -57,10 +57,25 @@ class ImageProcessor {
     print('time2 ${new DateTime.now().millisecondsSinceEpoch - input.time!} ms');
     input.sendPort.send(true);
   }
+  static Future<void> _compressImageIsolate2(ProcessImageInput input) async {
+    print('time1 ${new DateTime.now().millisecondsSinceEpoch - input.time!} ms');
+    await NativeLibrary.compressImage(input.inputPath, input.destPath!, input.maxWidth!, input.quality!, 0);
+    print('time2 ${new DateTime.now().millisecondsSinceEpoch - input.time!} ms');
+  }
 
   static Future<bool> compressImage(String filePath, String destPath, int maxWidth, int quality) async {
     int start = new DateTime.now().millisecondsSinceEpoch;
     final port = ReceivePort();
+    // await compute(_compressImageIsolate2,
+    //     ProcessImageInput(
+    //         destPath: destPath,
+    //         inputPath: filePath,
+    //         sendPort: port.sendPort,
+    //         maxWidth: maxWidth,
+    //         quality: quality,
+    //         time: start
+    //     ));
+    // return true;
     Isolate.spawn(
       _compressImageIsolate,
         ProcessImageInput(

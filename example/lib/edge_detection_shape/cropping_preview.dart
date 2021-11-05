@@ -5,7 +5,7 @@ import 'dart:ui' as ui;
 import 'package:opencv/native_library.dart';
 import 'package:flutter/material.dart';
 
-import 'edge_detection_shape/edge_detection_shape.dart';
+import 'edge_detection_shape.dart';
 
 class ImagePreview extends StatefulWidget {
   ImagePreview({
